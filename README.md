@@ -25,13 +25,27 @@ std::istream& operator>>(std::istream& is, Hoge& h)
 
 int main(int argc, char const* argv[])
 {
+   using argparse::arg;
+
    // construct a command line parser
    auto p = argparse::make_parser(
-      argparse::arg<bool>  ("--hoge", 'g', "some description"),
-      argparse::arg<int>   ("--fuga",      "awesome options with value", 0),
-      argparse::arg<string>("--foo",  'o', "hogehoge", argparse::oneof("a", "b", "c")),
-      argparse::arg<double>("--bar",  'm', "range",    argparse::range(0, 100)),
-      argparse::arg<Hoge>  ("--hogehoge")
+
+      // 1: option name  (string)
+      // 2: short option (char)
+      // 3: description  (string)
+      arg<bool>("--hoge", 'g', "some description"),
+
+      // without short name
+      arg<int>("--fuga", "awesome options with value"),
+
+      // restrict value if oneof() use
+      arg<string>("--foo", 'o', "hogehoge", argparse::oneof("a", "b", "c")),
+
+      // if T is arithmetic, it can restrict by using range()
+      arg<double>("--bar",  'm', "range",    argparse::range(0, 100)),
+
+      // not only primitive type, but also user-defined type (only istreamable)
+      arg<Hoge>("--hogehoge")
    );
 
    // parse arguments
@@ -42,13 +56,10 @@ int main(int argc, char const* argv[])
    p.parse(argc, argv);
 
    // get parsed options and remaining arguments.
-   bool   hoge;
-   int    fuga;
-   string foo;
-   double bar;
-   Hoge   hogehoge;
-   tie(hoge, fuga, foo, bar, hogehoge) = p.args();  // :: tuple<bool, int, string, double, Hoge>
-   auto remains = p.remains();                      // :: vector<string>
+   bool   hoge;  int fuga;       string foo;
+   double bar;   Hoge hogehoge;
+   tie(hoge, fuga, foo, bar, hogehoge) = p.args();
+   vector<string> remains = p.remains();
 }
 ```
 
