@@ -9,48 +9,29 @@ using namespace std;
 
 #include "argparse.hpp"
 
-
-TEST_CASE("regular use", "[argument]")
-{
-   argparse::argument<int> a = argparse::arg<int>("hoge", 'h', "short description");
-
-   STATIC_ASSERT_EQ(decltype(a)::arg_type, int);
-
-   REQUIRE(a.name() == "hoge");
-   REQUIRE(a.has_short_name());
-   REQUIRE(a.short_name() == 'h');
-   REQUIRE(a.help() == "short description");
-}
-
-TEST_CASE("omit short_name", "[argument]")
-{
-   argparse::argument<int> a = argparse::arg<int>("hoge", "desc");
-
-   REQUIRE(!a.has_short_name());
-   REQUIRE_THROWS(a.short_name());
-}
-
-
 TEST_CASE("make parser", "[parser]")
 {
-   argparse::parser<argparse::argument<int>, argparse::argument<string>>
-      p = argparse::make_parser(
-         argparse::arg<int>("hoge"),
-         argparse::arg<string>("fuga", 'f')
-      );
+   using argparse::arg;
 
-   SECTION("parse") {
-      p.parse({ "progname", "--hoge", "10", "aaa", "-f", "foo", "bb", "cc" });
+   using parser_t = argparse::parser<
+      argparse::argument<int>,
+      argparse::argument<string>
+   >;
+   parser_t p = argparse::make_parser(
+      arg<int>   ("hoge"),
+      arg<string>("fuga", 'f')
+   );
 
-      REQUIRE(p.progname() == "progname");
+   p.parse({ "progname", "--hoge", "10", "aaa", "-f", "foo", "bb", "cc" });
 
-      tuple<int, string> const& options = p.options();
-      REQUIRE(std::get<0>(options) == 10);
-      REQUIRE(std::get<1>(options) == "foo");
+   REQUIRE(p.progname() == "progname");
 
-      vector<string> const& remains = p.remains();
-      REQUIRE(remains[0] == "aaa");
-      REQUIRE(remains[1] == "bb");
-      REQUIRE(remains[2] == "cc");
-   }
+   tuple<int, string> const& options = p.options();
+   REQUIRE(std::get<0>(options) == 10);
+   REQUIRE(std::get<1>(options) == "foo");
+
+   vector<string> const& remains = p.remains();
+   REQUIRE(remains[0] == "aaa");
+   REQUIRE(remains[1] == "bb");
+   REQUIRE(remains[2] == "cc");
 }

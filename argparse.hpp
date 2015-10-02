@@ -136,6 +136,8 @@ inline argument<void> flag(std::string const& name,
 template <typename... Args>
 struct parser
 {
+   using args_type = std::tuple<typename Args::arg_type...>;
+
    parser(Args&&... args)
       : args_{ std::forward<Args>(args)... }
    {
@@ -145,16 +147,20 @@ struct parser
       if (args.empty())
          throw std::runtime_error("argument must be at least one item(s).");
 
-      prog_name_ = args[0];
+      progname_ = args[0];
       remains_.assign(args.begin() + 1, args.end());
    }
 
+   std::string const& progname() const { return progname_; }
+   args_type const& options() const { return options_; }
+   std::vector<std::string> const& remains() const { return remains_; }
+   
 private:
-   std::string prog_name_;
-   std::tuple<typename Args::arg_type...> options_;
-   std::vector<std::string> remains_;
-
    std::tuple<Args...> args_;
+
+   std::string progname_;
+   args_type options_;
+   std::vector<std::string> remains_;
 };
 
 template <typename... Args>
