@@ -45,18 +45,32 @@ private:
 
 template <typename T>
 inline argument<T> arg(std::string const& name,
-                char short_name = '\0',
-                std::string const& help = "")
+                       char short_name = '\0',
+                       std::string const& help = "")
 {
    return argument<T>{ name, short_name, help };
 }
 
 template <typename T>
 inline argument<T> arg(std::string const& name,
-                std::string const& help)
+                       std::string const& help)
 {
    return argument<T>{ name, '\0', help };
 }
+
+inline argument<void> flag(std::string const& name,
+                           char short_name = '\0',
+                           std::string const& help = "")
+{
+   return argument<void>{ name, short_name, help };
+}
+
+inline argument<void> flag(std::string const& name,
+                           std::string const& help)
+{
+   return argument<void>{ name, '\0', help };
+}
+
 
 template <typename... Args>
 struct parser
@@ -66,12 +80,12 @@ struct parser
    {
    }
 
-   void parse(std::vector<std::string> args) {
-      if (args.size() == 0)
+   void parse(std::vector<std::string> const& args) {
+      if (args.empty())
          throw std::runtime_error("argument must be at least one item(s).");
 
       prog_name_ = args[0];
-      remains_.assign(args.begin()@+1, args.end());
+      remains_.assign(args.begin() + 1, args.end());
    }
 
 private:
