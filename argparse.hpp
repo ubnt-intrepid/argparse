@@ -5,7 +5,9 @@
 #include <tuple>
 #include <sstream>
 #include <type_traits>
-
+#include <functional>
+#include <memory>
+#include <unordered_map>
 
 namespace argparse {
 
@@ -67,8 +69,14 @@ inline Out lexical_cast(In const& val) {
 
 //
 
+struct argument_base {
+   virtual void assign(std::string const& src) = 0;
+   virtual std::string const& name() const = 0;
+   virtual char short_name() const = 0;
+};
+
 template <typename T>
-struct argument {
+struct argument : argument_base {
    using arg_type = T;
 
    argument(std::string const& name,
@@ -80,28 +88,24 @@ struct argument {
    {
    }
 
-   std::string const& name() const {
+   std::string const& name() const override {
       return name_;
    }
 
-   bool has_short_name() const {
-      return short_name_ != '\0';
-   }
-
-   char short_name() const {
-      if (!has_short_name())
-         throw std::logic_error("no short name");
+   char short_name() const override {
       return short_name_;
    }
 
-   std::string const& help() const {
-      return help_;
+   void assign(std::string const& src) override {
+      val_.reset(new T(lexical_cast<T>(src)));
    }
 
 private:
    std::string name_;
    char short_name_;
    std::string help_;
+
+   std::unique_ptr<T> val_;
 };
 
 template <typename T>
@@ -119,20 +123,6 @@ inline argument<T> arg(std::string const& name,
    return argument<T>{ name, '\0', help };
 }
 
-inline argument<void> flag(std::string const& name,
-                           char short_name = '\0',
-                           std::string const& help = "")
-{
-   return argument<void>{ name, short_name, help };
-}
-
-inline argument<void> flag(std::string const& name,
-                           std::string const& help)
-{
-   return argument<void>{ name, '\0', help };
-}
-
-
 template <typename... Args>
 struct parser
 {
@@ -141,6 +131,7 @@ struct parser
    parser(Args&&... args)
       : args_{ std::forward<Args>(args)... }
    {
+      // make lookup tables.
    }
 
    void parse(std::vector<std::string> const& args) {
@@ -154,9 +145,11 @@ struct parser
    std::string const& progname() const { return progname_; }
    args_type const& options() const { return options_; }
    std::vector<std::string> const& remains() const { return remains_; }
-   
+
 private:
    std::tuple<Args...> args_;
+   std::unordered_map<std::string, std::reference_wrapper<argument_base>> lookup_;
+   std::unordered_map<char,        std::reference_wrapper<argument_base>> short_lookup_;
 
    std::string progname_;
    args_type options_;
