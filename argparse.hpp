@@ -152,6 +152,27 @@ inline argument_flag flag(std::string const& name, std::string const& help)
    return argument_flag{ name, '\0', help };
 }
 
+template <std::size_t... Idx>
+struct index_sequence {
+   using next = index_sequence<Idx..., sizeof...(Idx)>;
+};
+
+template <std::size_t Nt, std::size_t N>
+struct iota {
+   using type = typename iota<Nt-1, N-1>::type::next;
+};
+
+template <std::size_t Nt>
+struct iota<Nt, 0> {
+   using type = index_sequence<>;
+};
+
+template <std::size_t N>
+using make_index_sequence = typename iota<N, N>::type;
+
+template <typename... T> inline void dummy(T...) {}
+
+
 template <typename... Args>
 struct parser
 {
@@ -160,7 +181,24 @@ struct parser
    parser(Args&&... args)
       : args_{ std::forward<Args>(args)... }
    {
-      // make lookup tables.
+      make_lookup_tables(args_, make_index_sequence<sizeof...(Args)>());
+   }
+
+   template <typename Tuple, std::size_t... Idx>
+   void make_lookup_tables(Tuple& args, index_sequence<Idx...>) {
+      dummy( append_to_lookup_table(std::get<Idx>(args))... );
+   }
+
+   template <typename Arg>
+   int append_to_lookup_table(Arg& arg) {
+      std::string const& name = arg.name();
+      lookup_.insert({ name, static_cast<argument_base&>(arg) });
+
+      char s = arg.short_name();
+      if (s != '\0')
+         short_lookup_.insert({ s, static_cast<argument_base&>(arg) });
+
+      return 0;
    }
 
    void parse(std::vector<std::string> const& args) {
