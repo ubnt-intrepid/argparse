@@ -14,8 +14,8 @@ TEST_CASE("make parser", "[parser]")
    using argparse::arg;
 
    using parser_t = argparse::parser<
-      argparse::argument<int>,
-      argparse::argument<string>
+      argparse::argument_with_value<int>,
+      argparse::argument_with_value<string>
    >;
    parser_t p = argparse::make_parser(
       arg<int>   ("hoge"),

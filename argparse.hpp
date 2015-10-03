@@ -90,11 +90,11 @@ private:
 };
 
 template <typename T>
-struct argument : public argument_base {
+struct argument_with_value : public argument_base {
    using arg_type = T;
 
-   argument(std::string const& name, char short_name,
-            std::string const& help)
+   argument_with_value(std::string const& name, char short_name,
+                       std::string const& help)
       : argument_base{name, short_name, help}
    {
    }
@@ -110,11 +110,10 @@ private:
    std::unique_ptr<T> val_;
 };
 
-template <>
-struct argument<void> : public argument_base {
+struct argument_flag : public argument_base {
    using arg_type = bool;
 
-   argument(std::string const& name, char short_name,
+   argument_flag(std::string const& name, char short_name,
             std::string const& help)
       : argument_base{ name, short_name, help }
    {
@@ -130,27 +129,27 @@ private:
 
 
 template <typename T>
-inline argument<T> arg(std::string const& name, char short_name = '\0',
-                       std::string const& help = "")
+inline argument_with_value<T> arg(std::string const& name, char short_name = '\0',
+                                  std::string const& help = "")
 {
-   return argument<T>{ name, short_name, help };
+   return argument_with_value<T>{ name, short_name, help };
 }
 
 template <typename T>
-inline argument<T> arg(std::string const& name, std::string const& help)
+inline argument_with_value<T> arg(std::string const& name, std::string const& help)
 {
-   return argument<T>{ name, '\0', help };
+   return argument_with_value<T>{ name, '\0', help };
 }
 
-inline argument<void> flag(std::string const& name, char short_name = '\0',
-                           std::string const& help = "")
+inline argument_flag flag(std::string const& name, char short_name = '\0',
+                          std::string const& help = "")
 {
-   return argument<void>{ name, short_name, help };
+   return argument_flag{ name, short_name, help };
 }
 
-inline argument<void> flag(std::string const& name, std::string const& help)
+inline argument_flag flag(std::string const& name, std::string const& help)
 {
-   return argument<void>{ name, '\0', help };
+   return argument_flag{ name, '\0', help };
 }
 
 template <typename... Args>
