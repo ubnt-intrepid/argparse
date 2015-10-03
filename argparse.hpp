@@ -73,83 +73,61 @@ struct argument_base {
    virtual void assign(std::string const& src) = 0;
    virtual void store_true() = 0;
    virtual bool with_value() const = 0;
-   virtual std::string const& name() const = 0;
-   virtual char short_name() const = 0;
+
+   argument_base(std::string const& name, char short_name,
+                 std::string const& help)
+     : name_{name}, short_name_{short_name}, help_{help}
+  {
+  }
+
+   std::string const& name() const { return name_; }
+   char short_name() const { return short_name_; }
+
+private:
+   std::string name_;
+   char short_name_;
+   std::string help_;
 };
 
 template <typename T>
-struct argument : argument_base {
+struct argument : public argument_base {
    using arg_type = T;
 
-   argument(std::string const& name,
-            char short_name,
+   argument(std::string const& name, char short_name,
             std::string const& help)
-      : name_(name)
-      , short_name_(short_name)
-      , help_(help)
+      : argument_base{name, short_name, help}
    {
-   }
-
-   std::string const& name() const override {
-      return name_;
-   }
-
-   char short_name() const override {
-      return short_name_;
    }
 
    void assign(std::string const& src) override {
       val_.reset(new T(lexical_cast<T>(src)));
    }
 
-   void store_true() override {}
-
+   void store_true() override { /* do nothing. */ }
    bool with_value() const override { return true; }
 
 private:
-   std::string name_;
-   char short_name_;
-   std::string help_;
-
    std::unique_ptr<T> val_;
 };
 
 template <>
-struct argument<void> : argument_base {
+struct argument<void> : public argument_base {
    using arg_type = bool;
 
-   argument(std::string const& name,
-            char short_name,
+   argument(std::string const& name, char short_name,
             std::string const& help)
-      : name_(name)
-      , short_name_(short_name)
-      , help_(help)
+      : argument_base{ name, short_name, help }
    {
    }
 
-   std::string const& name() const override {
-      return name_;
-   }
-
-   char short_name() const override {
-      return short_name_;
-   }
-
-   void assign(std::string const&) override {}
-
-   void store_true() override {
-      val_ = true;
-   }
-
+   void assign(std::string const&) override { /* do nothing. */ }
+   void store_true() override { val_ = true; }
    bool with_value() const override { return false; }
 
 private:
-   std::string name_;
-   char short_name_;
-   std::string help_;
-
    bool val_ = false;
 };
+
 
 template <typename T>
 inline argument<T> arg(std::string const& name, char short_name = '\0',
@@ -191,6 +169,7 @@ struct parser
          throw std::runtime_error("argument must be at least one item(s).");
 
       progname_ = args[0];
+
       for (auto it = args.begin(); it != args.end(); ++it)
       {
          auto& arg = *it;
@@ -198,6 +177,8 @@ struct parser
             std::string::size_type pos = arg.find('=',2);
             if (pos==std::string::npos) {
                std::string key = arg.substr(2);
+               if (lookup_.count(key) == 0)
+                  throw std::runtime_error("unknown option: --" + key);
                argument_base& a = lookup_.at(key).get();
                if (a.with_value()) {
                   // read next argument
