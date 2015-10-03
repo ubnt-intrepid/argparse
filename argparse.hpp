@@ -106,6 +106,15 @@ struct argument_with_value : public argument_base {
    void store_true() override { /* do nothing. */ }
    bool with_value() const override { return true; }
 
+   T const& get() const {
+      if (val_) {
+         return *val_;
+      }
+      else {
+         throw std::runtime_error("not initialized");
+      }
+   }
+
 private:
    std::unique_ptr<T> val_;
 };
@@ -122,6 +131,8 @@ struct argument_flag : public argument_base {
    void assign(std::string const&) override { /* do nothing. */ }
    void store_true() override { val_ = true; }
    bool with_value() const override { return false; }
+
+   bool get() const { return val_; }
 
 private:
    bool val_ = false;
@@ -207,7 +218,7 @@ struct parser
 
       progname_ = args[0];
 
-      for (auto it = args.begin(); it != args.end(); ++it)
+      for (auto it = args.begin()+1; it != args.end(); ++it)
       {
          auto& arg = *it;
          if (arg.substr(0,2)=="--") { // long option
@@ -257,6 +268,20 @@ struct parser
             remains_.push_back(arg);
          }
       }
+
+      get_values(make_index_sequence<std::tuple_size<args_type>::value>());
+   }
+
+   template <size_t... Idx>
+   void get_values(index_sequence<Idx...>)
+   {
+      dummy(get_value(std::get<Idx>(options_), std::get<Idx>(args_))...);
+   }
+
+   template <typename Opt, typename Arg>
+   int get_value(Opt& opt, Arg& arg) {
+      opt = arg.get();
+      return 0;
    }
 
    std::string const& progname() const { return progname_; }
