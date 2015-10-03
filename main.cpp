@@ -22,7 +22,7 @@ TEST_CASE("make parser", "[parser]")
    parser_t p = argparse::make_parser(
       arg<int>   ("hoge"),
       arg<string>("fuga", 'f'),
-      flag("foo")
+      flag       ("foo")
    );
 
    p.parse({ "progname", "--hoge", "10", "aaa", "-f", "foo", "bb", "cc", "--foo" });
@@ -30,9 +30,13 @@ TEST_CASE("make parser", "[parser]")
    REQUIRE(p.progname() == "progname");
 
    tuple<int, string, bool> const& options = p.options();
-   REQUIRE(std::get<0>(options) == 10);
-   REQUIRE(std::get<1>(options) == "foo");
-   REQUIRE(std::get<2>(options) == true);
+   int hoge;
+   string fuga;
+   bool foo;
+   tie(hoge, fuga, foo) = options;
+   REQUIRE(hoge == 10);
+   REQUIRE(fuga == "foo");
+   REQUIRE(foo == true);
 
    vector<string> const& remains = p.remains();
    REQUIRE(remains[0] == "aaa");
