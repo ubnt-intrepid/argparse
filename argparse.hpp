@@ -71,6 +71,8 @@ inline Out lexical_cast(In const& val) {
 
 struct argument_base {
    virtual void assign(std::string const& src) = 0;
+   virtual void store_true() = 0;
+   virtual bool with_value() const = 0;
    virtual std::string const& name() const = 0;
    virtual char short_name() const = 0;
 };
@@ -100,6 +102,10 @@ struct argument : argument_base {
       val_.reset(new T(lexical_cast<T>(src)));
    }
 
+   void store_true() override {}
+
+   bool with_value() const override { return true; }
+
 private:
    std::string name_;
    char short_name_;
@@ -108,19 +114,65 @@ private:
    std::unique_ptr<T> val_;
 };
 
+template <>
+struct argument<void> : argument_base {
+   using arg_type = bool;
+
+   argument(std::string const& name,
+            char short_name,
+            std::string const& help)
+      : name_(name)
+      , short_name_(short_name)
+      , help_(help)
+   {
+   }
+
+   std::string const& name() const override {
+      return name_;
+   }
+
+   char short_name() const override {
+      return short_name_;
+   }
+
+   void assign(std::string const&) override {}
+
+   void store_true() override {
+      val_ = true;
+   }
+
+   bool with_value() const override { return false; }
+
+private:
+   std::string name_;
+   char short_name_;
+   std::string help_;
+
+   bool val_ = false;
+};
+
 template <typename T>
-inline argument<T> arg(std::string const& name,
-                       char short_name = '\0',
+inline argument<T> arg(std::string const& name, char short_name = '\0',
                        std::string const& help = "")
 {
    return argument<T>{ name, short_name, help };
 }
 
 template <typename T>
-inline argument<T> arg(std::string const& name,
-                       std::string const& help)
+inline argument<T> arg(std::string const& name, std::string const& help)
 {
    return argument<T>{ name, '\0', help };
+}
+
+inline argument<void> flag(std::string const& name, char short_name = '\0',
+                           std::string const& help = "")
+{
+   return argument<void>{ name, short_name, help };
+}
+
+inline argument<void> flag(std::string const& name, std::string const& help)
+{
+   return argument<void>{ name, '\0', help };
 }
 
 template <typename... Args>
@@ -139,7 +191,54 @@ struct parser
          throw std::runtime_error("argument must be at least one item(s).");
 
       progname_ = args[0];
-      remains_.assign(args.begin() + 1, args.end());
+      for (auto it = args.begin(); it != args.end(); ++it)
+      {
+         auto& arg = *it;
+         if (arg.substr(0,2)=="--") { // long option
+            std::string::size_type pos = arg.find('=',2);
+            if (pos==std::string::npos) {
+               std::string key = arg.substr(2);
+               argument_base& a = lookup_.at(key).get();
+               if (a.with_value()) {
+                  // read next argument
+                  ++it;
+                  std::string val = *it;
+                  a.assign(val);
+               }
+               else {
+                  a.store_true();
+               }
+            }
+            else {
+               std::string key = arg.substr(2, pos);
+               std::string val = arg.substr(pos+1);
+               argument_base& a = lookup_.at(key).get();
+               if (a.with_value()) {
+                  a.assign(val);
+               }
+               else {
+                  a.store_true();
+               }
+            }
+         }
+         else if (arg[0] == '-') { // short option
+            if (arg.length() < 2) continue;
+            char s = arg[1];
+            if (short_lookup_.count(s) == 0)
+               throw std::runtime_error(std::string("unknown short option: -") + s);
+            argument_base& a = short_lookup_.at(s).get();
+            if (a.with_value()) {
+               ++it;
+               std::string val = *it;
+               a.assign(val);
+            } else {
+               a.store_true();
+            }
+         }
+         else { // normal argument
+            remains_.push_back(arg);
+         }
+      }
    }
 
    std::string const& progname() const { return progname_; }
