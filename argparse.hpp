@@ -8,6 +8,7 @@
 #pragma once
 
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -15,7 +16,6 @@
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
-#include <iostream>
 
 namespace argparse {
 
@@ -92,18 +92,20 @@ namespace detail {
 template <std::size_t N>
 using make_index_sequence = typename detail::iota<N, N>::type;
 
-//
+template <typename T, typename... Args>
+std::unique_ptr<T> make_unique(Args&&... args) {
+   return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+
+// ---------
 
 struct argument_base {
    virtual void assign(std::string const& src) = 0;
    virtual void store_true() = 0;
    virtual bool with_value() const = 0;
 
-   argument_base(std::string const& name, char short_name,
-                 std::string const& help)
-     : name_{name}, short_name_{short_name}, help_{help}
-  {
-  }
+   argument_base(std::string const& name, char short_name, std::string const& help)
+     : name_{name}, short_name_{short_name}, help_{help} {}
 
    std::string const& name() const { return name_; }
    char short_name() const { return short_name_; }
@@ -115,43 +117,36 @@ private:
 };
 
 template <typename T>
-struct argument_with_value : public argument_base {
+struct argument_with_value : public argument_base
+{
    using arg_type = T;
 
-   argument_with_value(std::string const& name, char short_name,
-                       std::string const& help)
-      : argument_base{name, short_name, help}
-   {
-   }
+   argument_with_value(std::string const& name, char short_name, std::string const& help)
+      : argument_base{ name, short_name, help } {}
 
    void assign(std::string const& src) override {
-      val_.reset(new T(lexical_cast<T>(src)));
+      val_ = make_unique<T>(lexical_cast<T>(src));
    }
 
    void store_true() override { /* do nothing. */ }
    bool with_value() const override { return true; }
 
    T const& get() const {
-      if (val_) {
-         return *val_;
-      }
-      else {
-         throw std::runtime_error("not initialized");
-      }
+      if (!val_)
+         throw std::runtime_error("argument is not initialized");
+      return *val_;
    }
 
 private:
    std::unique_ptr<T> val_;
 };
 
-struct argument_flag : public argument_base {
+struct argument_flag : public argument_base
+{
    using arg_type = bool;
 
-   argument_flag(std::string const& name, char short_name,
-            std::string const& help)
-      : argument_base{ name, short_name, help }
-   {
-   }
+   argument_flag(std::string const& name, char short_name, std::string const& help)
+      : argument_base{ name, short_name, help } {}
 
    void assign(std::string const&) override { /* do nothing. */ }
    void store_true() override { val_ = true; }
@@ -162,31 +157,6 @@ struct argument_flag : public argument_base {
 private:
    bool val_ = false;
 };
-
-
-template <typename T>
-inline argument_with_value<T> arg(std::string const& name, char short_name = '\0',
-                                  std::string const& help = "")
-{
-   return argument_with_value<T>{ name, short_name, help };
-}
-
-template <typename T>
-inline argument_with_value<T> arg(std::string const& name, std::string const& help)
-{
-   return argument_with_value<T>{ name, '\0', help };
-}
-
-inline argument_flag flag(std::string const& name, char short_name = '\0',
-                          std::string const& help = "")
-{
-   return argument_flag{ name, short_name, help };
-}
-
-inline argument_flag flag(std::string const& name, std::string const& help)
-{
-   return argument_flag{ name, '\0', help };
-}
 
 template <typename... Args>
 struct parser
@@ -261,7 +231,7 @@ private:
       append_to_lookup_table(std::get<I>(args_));
       make_lookup_tables(index_sequence<Idx...>());
    }
-   void make_lookup_tables(index_sequence<>) {}
+   inline void make_lookup_tables(index_sequence<>) {}
 
    template <typename Arg>
    void append_to_lookup_table(Arg& arg) {
@@ -277,12 +247,22 @@ private:
       std::get<I>(options_) = std::get<I>(args_).get();
       get_values(index_sequence<Idx...>());
    }
-   void get_values(index_sequence<>) {}
+   inline void get_values(index_sequence<>) {}
 
-   void assign(std::string const& key, std::string const& val) {
+   argument_base& get_ref(std::string const& key) {
       if (lookup_.count(key) == 0)
          throw std::runtime_error("unknown option: --" + key);
-      argument_base& a = lookup_.at(key).get();
+      return lookup_.at(key).get();
+   }
+
+   argument_base& get_ref(char s) {
+      if (short_lookup_.count(s) == 0)
+         throw std::runtime_error(std::string("unknown option: -") + s);
+      return short_lookup_.at(s).get();
+   }
+
+   void assign(std::string const& key, std::string const& val) {
+      argument_base& a = get_ref(key);
       if (a.with_value()) {
          a.assign(val);
       }
@@ -291,23 +271,9 @@ private:
       }
    }
 
-   void assign(std::string const& key, std::vector<std::string>::const_iterator& it) {
-      if (lookup_.count(key) == 0)
-         throw std::runtime_error("unknown option: --" + key);
-      argument_base& a = lookup_.at(key).get();
-      if (a.with_value()) {
-         ++it;
-         a.assign(*it);
-      }
-      else {
-         a.store_true();
-      }
-   }
-
-   void assign(char s, std::vector<std::string>::const_iterator& it) {
-      if (short_lookup_.count(s) == 0)
-         throw std::runtime_error(std::string("unknown option: -") + s);
-      argument_base& a = short_lookup_.at(s).get();
+   template <typename Key>
+   void assign(Key&& key, std::vector<std::string>::const_iterator& it) {
+      argument_base& a = get_ref(std::forward<Key>(key));
       if (a.with_value()) {
          ++it;
          a.assign(*it);
@@ -318,9 +284,31 @@ private:
    }
 };
 
+// -----
+
 template <typename... Args>
 parser<Args...> make_parser(Args&&... args) {
    return parser<Args...>{ std::forward<Args>(args)... };
+}
+
+template <typename T>
+inline argument_with_value<T> arg(std::string const& name, char short_name = '\0',
+                                  std::string const& help = "") {
+   return argument_with_value<T>{ name, short_name, help };
+}
+
+template <typename T>
+inline argument_with_value<T> arg(std::string const& name, std::string const& help) {
+   return argument_with_value<T>{ name, '\0', help };
+}
+
+inline argument_flag flag(std::string const& name, char short_name = '\0',
+                          std::string const& help = "") {
+   return argument_flag{ name, short_name, help };
+}
+
+inline argument_flag flag(std::string const& name, std::string const& help) {
+   return argument_flag{ name, '\0', help };
 }
 
 } // namespace argparse;
