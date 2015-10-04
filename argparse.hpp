@@ -231,6 +231,8 @@ struct parser
             else {
                std::string key = arg.substr(2, pos - 2);
                std::string val = arg.substr(pos + 1);
+               if (lookup_.count(key) == 0)
+                  throw std::runtime_error("unknown option: --" + key);
                argument_base& a = lookup_.at(key).get();
                if (a.with_value()) {
                   a.assign(val);
