@@ -91,7 +91,9 @@ namespace detail {
 template <std::size_t N>
 using make_index_sequence = typename detail::iota<N, N>::type;
 
-template <typename... T> inline void dummy(T...) {}
+struct dummy {
+   template <typename... T> dummy(T...) {}
+};
 
 //
 
@@ -280,7 +282,7 @@ private:
 private:
    template <std::size_t... Idx>
    void make_lookup_tables(index_sequence<Idx...>) {
-      dummy( append_to_lookup_table(std::get<Idx>(args_))... );
+      dummy{ append_to_lookup_table(std::get<Idx>(args_))... };
    }
 
    template <typename Arg>
@@ -296,7 +298,7 @@ private:
 
    template <size_t... Idx>
    void get_values(index_sequence<Idx...>) {
-      dummy( get_value(std::get<Idx>(options_), std::get<Idx>(args_))... );
+      dummy{ get_value(std::get<Idx>(options_), std::get<Idx>(args_))... };
    }
 
    template <typename Opt, typename Arg>
