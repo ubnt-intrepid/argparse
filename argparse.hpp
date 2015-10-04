@@ -15,6 +15,7 @@
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
+#include <iostream>
 
 namespace argparse {
 
@@ -198,6 +199,10 @@ struct parser
       make_lookup_tables(make_index_sequence<sizeof...(Args)>());
    }
 
+   void parse(int argc, char const* argv[]) {
+      parse(std::vector<std::string>(argv, argv + argc));
+   }
+
    void parse(std::vector<std::string> const& args) {
       if (args.empty())
          throw std::runtime_error("argument must be at least one item(s).");
@@ -224,7 +229,7 @@ struct parser
                }
             }
             else {
-               std::string key = arg.substr(2, pos);
+               std::string key = arg.substr(2, pos - 2);
                std::string val = arg.substr(pos + 1);
                argument_base& a = lookup_.at(key).get();
                if (a.with_value()) {

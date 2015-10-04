@@ -1,14 +1,3 @@
-Argparse
-========
-
-Yet another command line parser for C++11
-
-* only one header file
-* static type check
-
-# Example
-
-```cpp
 #include "argparse.hpp"
 #include <iostream>
 using namespace std;
@@ -46,10 +35,9 @@ int main(int argc, char const* argv[])
    bool verbose;
    tie(ip, port, verbose) = p.options();
    vector<string> remains = p.remains();
+
+   cout << ip << ":" << port << endl;
+   for (auto& r: remains)
+       cout << r << endl;
 }
-```
 
-# License
-Copyright (c) 2015 Yusuke Sasaki
-
-This software is released under the MIT License, see [LICENSE](LICENSE).
