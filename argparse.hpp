@@ -194,6 +194,8 @@ struct parser
                std::string::size_type pos = arg.find('=', 2);
                if (pos == std::string::npos) {
                   std::string key = arg.substr(2);
+                  if (it + 1 == args.end())
+                     throw argparse_error{"needs value: " + key};
                   assign(key, it);
                }
                else {
@@ -205,6 +207,8 @@ struct parser
             else if (arg[0] == '-') {
                // short option
                char s = arg[1];
+               if (it + 1 == args.end())
+                  throw argparse_error{std::string("needs value: ") + s};
                assign(s, it);
             }
             else {
@@ -216,7 +220,7 @@ struct parser
          get_values(make_index_sequence<std::tuple_size<args_type>::value>());
       }
       catch (argparse_error const& err) {
-         std::cerr << "parse error: " << e.what() << std::endl;
+         std::cerr << "parse error: " << err.what() << std::endl;
          std::exit(1);
       }
    }
@@ -240,19 +244,15 @@ private:
 private:
    template <std::size_t I, std::size_t... Idx>
    void make_lookup_tables(index_sequence<I, Idx...>) {
-      append_to_lookup_table(std::get<I>(args_));
+      argument_base& arg = std::get<I>(args_);
+      lookup_.insert({ arg.name(), arg });
+      char s = arg.short_name();
+      if (s != '\0')
+         short_lookup_.insert({ s, arg });
+
       make_lookup_tables(index_sequence<Idx...>());
    }
    inline void make_lookup_tables(index_sequence<>) {}
-
-   template <typename Arg>
-   void append_to_lookup_table(Arg& arg) {
-      lookup_.insert({ arg.name(), static_cast<argument_base&>(arg) });
-
-      char s = arg.short_name();
-      if (s != '\0')
-         short_lookup_.insert({ s, static_cast<argument_base&>(arg) });
-   }
 
    template <std::size_t I, std::size_t... Idx>
    void get_values(index_sequence<I, Idx...>) {
