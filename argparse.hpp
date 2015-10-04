@@ -211,51 +211,24 @@ struct parser
 
       for (auto it = args.begin() + 1; it != args.end(); ++it)
       {
-         auto& arg = *it;
+         std::string const& arg = *it;
          if (arg.substr(0,2) == "--") {
             // long option
             std::string::size_type pos = arg.find('=', 2);
             if (pos == std::string::npos) {
                std::string key = arg.substr(2);
-               if (lookup_.count(key) == 0)
-                  throw std::runtime_error("unknown option: --" + key);
-               argument_base& a = lookup_.at(key).get();
-               if (a.with_value()) {
-                  ++it;
-                  a.assign(*it);
-               }
-               else {
-                  a.store_true();
-               }
+               assign(key, it);
             }
             else {
                std::string key = arg.substr(2, pos - 2);
                std::string val = arg.substr(pos + 1);
-               if (lookup_.count(key) == 0)
-                  throw std::runtime_error("unknown option: --" + key);
-               argument_base& a = lookup_.at(key).get();
-               if (a.with_value()) {
-                  a.assign(val);
-               }
-               else {
-                  a.store_true();
-               }
+               assign(key, val);
             }
          }
          else if (arg[0] == '-') {
             // short option
-            if (arg.length() < 2)
-               continue;
             char s = arg[1];
-            if (short_lookup_.count(s) == 0)
-               throw std::runtime_error(std::string("unknown short option: -") + s);
-            argument_base& a = short_lookup_.at(s).get();
-            if (a.with_value()) {
-               ++it;
-               a.assign(*it);
-            } else {
-               a.store_true();
-            }
+            assign(s, it);
          }
          else {
             // normal argument
@@ -305,6 +278,44 @@ private:
       get_values(index_sequence<Idx...>());
    }
    void get_values(index_sequence<>) {}
+
+   void assign(std::string const& key, std::string const& val) {
+      if (lookup_.count(key) == 0)
+         throw std::runtime_error("unknown option: --" + key);
+      argument_base& a = lookup_.at(key).get();
+      if (a.with_value()) {
+         a.assign(val);
+      }
+      else {
+         a.store_true();
+      }
+   }
+
+   void assign(std::string const& key, std::vector<std::string>::const_iterator& it) {
+      if (lookup_.count(key) == 0)
+         throw std::runtime_error("unknown option: --" + key);
+      argument_base& a = lookup_.at(key).get();
+      if (a.with_value()) {
+         ++it;
+         a.assign(*it);
+      }
+      else {
+         a.store_true();
+      }
+   }
+
+   void assign(char s, std::vector<std::string>::const_iterator& it) {
+      if (short_lookup_.count(s) == 0)
+         throw std::runtime_error(std::string("unknown option: -") + s);
+      argument_base& a = short_lookup_.at(s).get();
+      if (a.with_value()) {
+         ++it;
+         a.assign(*it);
+      }
+      else {
+         a.store_true();
+      }
+   }
 };
 
 template <typename... Args>
