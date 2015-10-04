@@ -99,6 +99,12 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 
 // ---------
 
+class argparse_error : public std::runtime_error {
+public:
+   explicit argparse_error(std::string const& msg)
+      : std::runtime_error{msg} {}
+};
+
 struct argument_base {
    virtual void assign(std::string const& src) = 0;
    virtual void store_true() = 0;
@@ -133,7 +139,7 @@ struct argument_with_value : public argument_base
 
    T const& get() const {
       if (!val_)
-         throw std::runtime_error("argument is not initialized");
+         throw argparse_error{"argument is not initialized"};
       return *val_;
    }
 
@@ -174,39 +180,45 @@ struct parser
    }
 
    void parse(std::vector<std::string> const& args) {
-      if (args.empty())
-         throw std::runtime_error("argument must be at least one item(s).");
+      try {
+         if (args.empty())
+            throw argparse_error{"argument must be at least one item(s)."};
 
-      progname_ = args[0];
+         progname_ = args[0];
 
-      for (auto it = args.begin() + 1; it != args.end(); ++it)
-      {
-         std::string const& arg = *it;
-         if (arg.substr(0,2) == "--") {
-            // long option
-            std::string::size_type pos = arg.find('=', 2);
-            if (pos == std::string::npos) {
-               std::string key = arg.substr(2);
-               assign(key, it);
+         for (auto it = args.begin() + 1; it != args.end(); ++it)
+         {
+            std::string const& arg = *it;
+            if (arg.substr(0, 2) == "--") {
+               // long option
+               std::string::size_type pos = arg.find('=', 2);
+               if (pos == std::string::npos) {
+                  std::string key = arg.substr(2);
+                  assign(key, it);
+               }
+               else {
+                  std::string key = arg.substr(2, pos - 2);
+                  std::string val = arg.substr(pos + 1);
+                  assign(key, val);
+               }
+            }
+            else if (arg[0] == '-') {
+               // short option
+               char s = arg[1];
+               assign(s, it);
             }
             else {
-               std::string key = arg.substr(2, pos - 2);
-               std::string val = arg.substr(pos + 1);
-               assign(key, val);
+               // normal argument
+               remains_.push_back(arg);
             }
          }
-         else if (arg[0] == '-') {
-            // short option
-            char s = arg[1];
-            assign(s, it);
-         }
-         else {
-            // normal argument
-            remains_.push_back(arg);
-         }
-      }
 
-      get_values(make_index_sequence<std::tuple_size<args_type>::value>());
+         get_values(make_index_sequence<std::tuple_size<args_type>::value>());
+      }
+      catch (argparse_error const& err) {
+         std::cerr << "parse error: " << e.what() << std::endl;
+         std::exit(1);
+      }
    }
 
    std::string const& progname() const { return progname_; }
@@ -251,13 +263,13 @@ private:
 
    argument_base& get_ref(std::string const& key) {
       if (lookup_.count(key) == 0)
-         throw std::runtime_error("unknown option: --" + key);
+         throw argparse_error{"unknown option: --" + key};
       return lookup_.at(key).get();
    }
 
    argument_base& get_ref(char s) {
       if (short_lookup_.count(s) == 0)
-         throw std::runtime_error(std::string("unknown option: -") + s);
+         throw argparse_error{std::string("unknown option: -") + s};
       return short_lookup_.at(s).get();
    }
 
