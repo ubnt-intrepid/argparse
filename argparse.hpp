@@ -91,10 +91,6 @@ namespace detail {
 template <std::size_t N>
 using make_index_sequence = typename detail::iota<N, N>::type;
 
-struct dummy {
-   template <typename... T> dummy(T...) {}
-};
-
 //
 
 struct argument_base {
@@ -280,32 +276,28 @@ private:
    std::vector<std::string> remains_;
 
 private:
-   template <std::size_t... Idx>
-   void make_lookup_tables(index_sequence<Idx...>) {
-      dummy{ append_to_lookup_table(std::get<Idx>(args_))... };
+   template <std::size_t I, std::size_t... Idx>
+   void make_lookup_tables(index_sequence<I, Idx...>) {
+      append_to_lookup_table(std::get<I>(args_));
+      make_lookup_tables(index_sequence<Idx...>());
    }
+   void make_lookup_tables(index_sequence<>) {}
 
    template <typename Arg>
-   int append_to_lookup_table(Arg& arg) {
+   void append_to_lookup_table(Arg& arg) {
       lookup_.insert({ arg.name(), static_cast<argument_base&>(arg) });
 
       char s = arg.short_name();
       if (s != '\0')
          short_lookup_.insert({ s, static_cast<argument_base&>(arg) });
-
-      return 0;
    }
 
-   template <size_t... Idx>
-   void get_values(index_sequence<Idx...>) {
-      dummy{ get_value(std::get<Idx>(options_), std::get<Idx>(args_))... };
+   template <std::size_t I, std::size_t... Idx>
+   void get_values(index_sequence<I, Idx...>) {
+      std::get<I>(options_) = std::get<I>(args_).get();
+      get_values(index_sequence<Idx...>());
    }
-
-   template <typename Opt, typename Arg>
-   int get_value(Opt& opt, Arg& arg) {
-      opt = arg.get();
-      return 0;
-   }
+   void get_values(index_sequence<>) {}
 };
 
 template <typename... Args>
