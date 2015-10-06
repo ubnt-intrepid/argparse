@@ -299,28 +299,28 @@ private:
 // -----
 
 template <typename... Args>
-parser<Args...> make_parser(Args&&... args) {
-   return parser<Args...>{ std::forward<Args>(args)... };
+inline parser<Args...> make_parser(Args&&... args) {
+   return { std::forward<Args>(args)... };
 }
 
 template <typename T>
 inline argument_with_value<T> arg(std::string const& name, char short_name = '\0',
                                   std::string const& help = "") {
-   return argument_with_value<T>{ name, short_name, help };
+   return { name, short_name, help };
 }
 
 template <typename T>
 inline argument_with_value<T> arg(std::string const& name, std::string const& help) {
-   return argument_with_value<T>{ name, '\0', help };
+   return { name, '\0', help };
 }
 
 inline argument_flag flag(std::string const& name, char short_name = '\0',
                           std::string const& help = "") {
-   return argument_flag{ name, short_name, help };
+   return { name, short_name, help };
 }
 
 inline argument_flag flag(std::string const& name, std::string const& help) {
-   return argument_flag{ name, '\0', help };
+   return { name, '\0', help };
 }
 
 } // namespace argparse;
