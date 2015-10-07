@@ -127,8 +127,9 @@ struct argument_with_value : public argument_base
 {
    using arg_type = T;
 
-   argument_with_value(std::string const& name, char short_name, std::string const& help)
-      : argument_base{ name, short_name, help } {}
+   template <typename... Args>
+   argument_with_value(Args&&... args)
+      : argument_base{ std::forward<Args>(args) } {}
 
    void assign(std::string const& src) override {
       val_ = make_unique<T>(lexical_cast<T>(src));
@@ -151,8 +152,9 @@ struct argument_flag : public argument_base
 {
    using arg_type = bool;
 
-   argument_flag(std::string const& name, char short_name, std::string const& help)
-      : argument_base{ name, short_name, help } {}
+   template <typename... Args>
+   argument_flag(Args&&... args)
+      : argument_base{ std::forward<Args>(args)... } {}
 
    void assign(std::string const&) override { /* do nothing. */ }
    void store_true() override { val_ = true; }
